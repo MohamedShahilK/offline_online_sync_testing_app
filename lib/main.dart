@@ -36,7 +36,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
   @override
   void initState() {
     super.initState();
-    print('fffffffffffffffffffffffffffffff');
+    // print('fffffffffffffffffffffffffffffff');
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       await _initDatabase();
       await _checkConnectivity();
@@ -49,6 +49,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
 
   Future<void> _fetchOnlineData() async {
     try {
+      await _database.delete('entries');
       final snapshot = await _firestore.collection('entries').get();
       for (var doc in snapshot.docs) {
         final data = doc.data();
@@ -89,10 +90,12 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
       setState(() {
         isOnline = result.first != ConnectivityResult.none;
       });
+
+      print('3333333333333333333333333333333333333333333 $isOnline');
+
       if (isOnline) {
-        print('eeeeeeeeeeeeeeeeeeeeeeeeeee');
         await _syncData();
-        // await _database.delete('entries');
+
         await _fetchOnlineData();
       }
     });
@@ -107,6 +110,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
     });
     if (isOnline) {
       await _syncData();
+      await _fetchOnlineData();
     }
   }
 
