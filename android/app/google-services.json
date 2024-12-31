@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "754525118093",
+    "project_id": "offline-online-app-123",
+    "storage_bucket": "offline-online-app-123.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754525118093:android:8918526927cf787f2f0cc4",
+        "android_client_info": {
+          "package_name": "com.exmaple.offlineonlineapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMm8f016VYbvmeW62OcV-PuEj8F8dNPgk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
