@@ -40,7 +40,33 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       await _initDatabase();
       await _checkConnectivity();
+
+      if (isOnline) {
+        await _fetchOnlineData();
+      }
     });
+  }
+
+  Future<void> _fetchOnlineData() async {
+    try {
+      final snapshot = await _firestore.collection('entries').get();
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final docId = doc.id;
+        final text = data['text'];
+
+        final existingEntry = await _database.query('entries', where: 'id = ?', whereArgs: [docId]);
+        if (existingEntry.isEmpty) {
+          await _database.insert('entries', {
+            'id': docId,
+            'text': text,
+            'synced': 1,
+          });
+        }
+      }
+    } catch (e) {
+      print('Failed to fetch online data: $e');
+    }
   }
 
   Future<void> _initDatabase() async {
@@ -67,17 +93,20 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         print('eeeeeeeeeeeeeeeeeeeeeeeeeee');
         await _syncData();
         // await _database.delete('entries');
+        await _fetchOnlineData();
       }
     });
   }
 
   Future<void> _addEntry(String text) async {
+    final newId = DateTime.now().millisecondsSinceEpoch.toString();
     await _database.insert('entries', {
+      'id': newId,
       'text': text,
       'synced': 0,
     });
     if (isOnline) {
-     await _syncData();
+      await _syncData();
     }
   }
 
@@ -86,13 +115,14 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
 
     for (final entry in unsyncedData) {
       try {
-        await _firestore.collection('entries').add({'text': entry['text']});
+        await _firestore.collection('entries').doc((entry['id'] as int).toString()).set({'text': entry['text']});
         await _database.update(
           'entries',
           {'synced': 1},
           where: 'id = ?',
           whereArgs: [entry['id']],
         );
+        await _getEntries();
       } catch (e) {
         print('Failed to sync entry: $e');
       }
@@ -120,8 +150,8 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              _addEntry(_controller.text);
+            onPressed: () async {
+              await _addEntry(_controller.text);
               _controller.clear();
               setState(() {});
             },
@@ -131,6 +161,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: _getEntries(),
               builder: (context, snapshot) {
+                print('55555555555555555555555555555555555555555555555555');
                 if (!snapshot.hasData) {
                   return Center(child: Text('No Data Found'));
                 }
