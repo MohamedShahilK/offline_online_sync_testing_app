@@ -1,5 +1,6 @@
 // Import necessary packages
 import 'package:flutter/material.dart';
+import 'package:rxdart/subjects.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,6 +34,8 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool isOnline = false;
 
+  final ticketsStream = BehaviorSubject<List<Map<String, dynamic>>>.seeded([]);
+
   @override
   void initState() {
     super.initState();
@@ -48,26 +51,31 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
   }
 
   Future<void> _fetchOnlineData() async {
-    try {
-      await _database.delete('entries');
-      final snapshot = await _firestore.collection('entries').get();
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final docId = doc.id;
-        final text = data['text'];
+    await _database.delete('entries').then((va) async {
+      try {
+        final snapshot = await _firestore.collection('entries').get();
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final docId = doc.id;
+          final text = data['text'];
 
-        final existingEntry = await _database.query('entries', where: 'id = ?', whereArgs: [docId]);
-        if (existingEntry.isEmpty) {
-          await _database.insert('entries', {
-            'id': docId,
-            'text': text,
-            'synced': 1,
-          });
+          final existingEntry = await _database.query('entries', where: 'id = ?', whereArgs: [docId]);
+          if (existingEntry.isEmpty) {
+            await _database.insert('entries', {
+              'id': docId,
+              'text': text,
+              'synced': 1,
+            });
+          }
         }
+        // await _getEntries();
+        final tickets = await _database.query('entries');
+        ticketsStream.add(tickets);
+        print('222222222222222222222222222222222 ${await _database.query('entries')}');
+      } catch (e) {
+        print('Failed to fetch online data: $e');
       }
-    } catch (e) {
-      print('Failed to fetch online data: $e');
-    }
+    });
   }
 
   Future<void> _initDatabase() async {
@@ -91,11 +99,10 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         isOnline = result.first != ConnectivityResult.none;
       });
 
-      print('3333333333333333333333333333333333333333333 $isOnline');
+      // print('3333333333333333333333333333333333333333333 $isOnline');
 
       if (isOnline) {
         await _syncData();
-
         await _fetchOnlineData();
       }
     });
@@ -108,9 +115,16 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
       'text': text,
       'synced': 0,
     });
+
+    print('3333333333333333333333333333333333333333333 $isOnline');
     if (isOnline) {
       await _syncData();
       await _fetchOnlineData();
+      final tickets = await _database.query('entries');
+      ticketsStream.add(tickets);
+    } else {
+      final tickets = await _database.query('entries');
+      ticketsStream.add(tickets);
     }
   }
 
@@ -126,16 +140,18 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
           where: 'id = ?',
           whereArgs: [entry['id']],
         );
-        await _getEntries();
+        // await _getEntries();
+        final tickets = await _database.query('entries');
+        ticketsStream.add(tickets);
       } catch (e) {
         print('Failed to sync entry: $e');
       }
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getEntries() async {
-    return await _database.query('entries');
-  }
+  // Future<List<Map<String, dynamic>>> _getEntries() async {
+  //   return await _database.query('entries');
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -162,10 +178,10 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
             child: Text('Add Entry'),
           ),
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _getEntries(),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: ticketsStream, // Use Stream instead of Future
               builder: (context, snapshot) {
-                print('55555555555555555555555555555555555555555555555555');
+                // print('55555555555555555555555555555555555555555555555555');
                 if (!snapshot.hasData) {
                   return Center(child: Text('No Data Found'));
                 }
