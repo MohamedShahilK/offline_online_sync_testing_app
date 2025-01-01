@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+final isSyncingNotifier = ValueNotifier<bool>(false);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -71,7 +73,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         // await _getEntries();
         final tickets = await _database.query('entries');
         ticketsStream.add(tickets);
-        print('222222222222222222222222222222222 ${await _database.query('entries')}');
+        // print('222222222222222222222222222222222 ${await _database.query('entries')}');
       } catch (e) {
         print('Failed to fetch online data: $e');
       }
@@ -118,10 +120,12 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
 
     print('3333333333333333333333333333333333333333333 $isOnline');
     if (isOnline) {
-      await _syncData();
-      await _fetchOnlineData();
       final tickets = await _database.query('entries');
       ticketsStream.add(tickets);
+      await _syncData();
+      await _fetchOnlineData();
+      // await _syncData();
+      // await _fetchOnlineData();
     } else {
       final tickets = await _database.query('entries');
       ticketsStream.add(tickets);
@@ -129,11 +133,24 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
   }
 
   Future<void> _syncData() async {
+    isSyncingNotifier.value = true;
+    isSyncingNotifier.notifyListeners();
     final unsyncedData = await _database.query('entries', where: 'synced = ?', whereArgs: [0]);
+
+    // Future.delayed(
+    //   Duration(seconds: 1),
+    //   () async {
+
+    //   },
+    // );
 
     for (final entry in unsyncedData) {
       try {
-        await _firestore.collection('entries').doc((entry['id'] as int).toString()).set({'text': entry['text']});
+        await _firestore.collection('entries').doc((entry['id'] as int).toString()).set({
+          'id': entry['id'],
+          'text': entry['text'],
+          // 'synced': entry['synced'],
+        });
         await _database.update(
           'entries',
           {'synced': 1},
@@ -147,6 +164,8 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         print('Failed to sync entry: $e');
       }
     }
+    isSyncingNotifier.value = false;
+    isSyncingNotifier.notifyListeners();
   }
 
   // Future<List<Map<String, dynamic>>> _getEntries() async {
@@ -156,7 +175,21 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Offline-Online Sync App')),
+      appBar: AppBar(
+        title: ValueListenableBuilder(
+          valueListenable: isSyncingNotifier,
+          builder: (context, sync, _) {
+            // print('33333333333333333333333333 ${isSyncingNotifier.value}');
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text('Offline-Online Sync App'),
+                if (isSyncingNotifier.value) Text('Syncing ....', style: TextStyle(fontSize: 13)),
+              ],
+            );
+          },
+        ),
+      ),
       body: Column(
         children: [
           Padding(
@@ -181,7 +214,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: ticketsStream, // Use Stream instead of Future
               builder: (context, snapshot) {
-                // print('55555555555555555555555555555555555555555555555555');
+                print('Syncing');
                 if (!snapshot.hasData) {
                   return Center(child: Text('No Data Found'));
                 }
