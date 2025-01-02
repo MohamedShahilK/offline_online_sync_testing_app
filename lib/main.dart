@@ -46,6 +46,8 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
       await _initDatabase();
       await _checkConnectivity();
 
+      // await deleteDatabase(join(await getDatabasesPath(), 'entries.db'));
+
       if (isOnline) {
         await _fetchOnlineData();
       }
@@ -59,14 +61,24 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         for (var doc in snapshot.docs) {
           final data = doc.data();
           final docId = doc.id;
-          final text = data['text'];
+          // final text = data['text'];
+          final text = data['ticket_number'];
 
           final existingEntry = await _database.query('entries', where: 'id = ?', whereArgs: [docId]);
           if (existingEntry.isEmpty) {
+            // await _database.insert('entries', {
+            //   'id': docId,
+            //   'text': text,
+            //   'synced': 1,
+            // });
+
             await _database.insert('entries', {
-              'id': docId,
-              'text': text,
               'synced': 1,
+              'id': docId,
+              'ticket_number': text,
+              'mobile_number': '',
+              'car_brand': '',
+              'car_color': '',
             });
           }
         }
@@ -89,7 +101,8 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
       version: 1,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE entries (id INTEGER PRIMARY KEY, text TEXT, synced INTEGER)',
+          // 'CREATE TABLE entries (id INTEGER PRIMARY KEY, text TEXT, synced INTEGER)',
+          'CREATE TABLE entries (id INTEGER PRIMARY KEY, ticket_number TEXT,mobile_number TEXT,car_brand TEXT,car_color TEXT, synced INTEGER)',
         );
       },
     );
@@ -112,10 +125,19 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
 
   Future<void> _addEntry(String text) async {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
+    // await _database.insert('entries', {
+    //   'id': newId,
+    //   'text': text,
+    //   'synced': 0,
+    // });
+
     await _database.insert('entries', {
-      'id': newId,
-      'text': text,
       'synced': 0,
+      'id': newId,
+      'ticket_number': text,
+      'mobile_number': 'asd',
+      'car_brand': 'asd',
+      'car_color': 'asd',
     });
 
     print('3333333333333333333333333333333333333333333 $isOnline');
@@ -146,9 +168,18 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
 
     for (final entry in unsyncedData) {
       try {
+        // await _firestore.collection('entries').doc((entry['id'] as int).toString()).set({
+        //   'id': entry['id'],
+        //   'text': entry['text'],
+        //   // 'synced': entry['synced'],
+        // });
+
         await _firestore.collection('entries').doc((entry['id'] as int).toString()).set({
           'id': entry['id'],
-          'text': entry['text'],
+          'ticket_number': entry['ticket_number'],
+          'mobile_number': entry['mobile_number'],
+          'car_brand': entry['car_brand'],
+          'car_color': entry['car_color'],
           // 'synced': entry['synced'],
         });
         await _database.update(
@@ -224,7 +255,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
                   itemBuilder: (context, index) {
                     final entry = entries[index];
                     return ListTile(
-                      title: Text(entry['text']),
+                      title: Text(entry['ticket_number']),
                       subtitle: Text(entry['synced'] == 1 ? 'Synced' : 'Unsynced'),
                     );
                   },
